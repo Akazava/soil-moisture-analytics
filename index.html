@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soil Moisture Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: all 0.3s ease;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    .upload-zone {
+      border: 3px dashed #86efac;
+      transition: all 0.3s ease;
+      padding: 3rem;
+      border-radius: 1rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .upload-zone:hover {
+      border-color: #22c55e;
+      background: #f0fdf4;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      transition: all 0.3s ease;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      color: white;
+      font-weight: 700;
+      font-size: 1.125rem;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 1rem;
+      box-shadow: 0 4px 6px rgba(34, 197, 94, 0.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
+    }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+      border-left: 4px solid #22c55e;
+      padding: 1.5rem;
+      border-radius: 1rem;
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+    }
+    .grid {
+      display: grid;
+      gap: 1rem;
+    }
+    .grid-cols-3 {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+    .grid-cols-2 {
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+    .hidden {
+      display: none;
+    }
+    .flex {
+      display: flex;
+    }
+    .items-center {
+      align-items: center;
+    }
+    .justify-center {
+      justify-content: center;
+    }
+    .justify-between {
+      justify-content: space-between;
+    }
+    .gap-2 { gap: 0.5rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-4 { gap: 1rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 0.75rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-4 { margin-top: 1rem; }
+    .mt-6 { margin-top: 1.5rem; }
+    input[type="file"] {
+      display: none;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+    }
+    th {
+      font-weight: 600;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    tr {
+      border-bottom: 1px solid #f3f4f6;
+      transition: background 0.2s;
+    }
+    tr:hover {
+      background: #f0fdf4;
+    }
+    .text-right {
+      text-align: right;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .icon {
+      width: 1.5rem;
+      height: 1.5rem;
+      flex-shrink: 0;
+    }
+    .icon-lg {
+      width: 3rem;
+      height: 3rem;
+    }
+    .icon-xl {
+      width: 4rem;
+      height: 4rem;
+    }
+    .text-green-600 { color: #22c55e; }
+    .text-green-700 { color: #15803d; }
+    .text-gray-500 { color: #6b7280; }
+    .text-gray-600 { color: #4b5563; }
+    .text-gray-700 { color: #374151; }
+    .text-gray-800 { color: #1f2937; }
+    .bg-green-50 { background: #f0fdf4; }
+    .bg-green-100 { background: #dcfce7; }
+    .bg-green-500 { background: #22c55e; }
+    .bg-blue-50 { background: #eff6ff; }
+    .border-green-200 { border: 2px solid #bbf7d0; }
+    .border-blue-200 { border: 1px solid #bfdbfe; }
+    .rounded-full { border-radius: 9999px; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-xl { border-radius: 0.75rem; }
+    .font-semibold { font-weight: 600; }
+    .font-bold { font-weight: 700; }
+    .text-sm { font-size: 0.875rem; }
+    .text-lg { font-size: 1.125rem; }
+    .text-xl { font-size: 1.25rem; }
+    .text-2xl { font-size: 1.5rem; }
+    .text-3xl { font-size: 1.875rem; }
+    .text-4xl { font-size: 2.25rem; }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    .spinner {
+      width: 4rem;
+      height: 4rem;
+      border: 4px solid #dcfce7;
+      border-top-color: #22c55e;
+      border-radius: 50%;
+    }
+    @media (min-width: 768px) {
+      body { padding: 2rem; }
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+  <div class="max-w-6xl mx-auto">
+    
+    <!-- Header -->
+    <div class="card p-8 mb-8 text-center">
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+        </svg>
+        <h1 class="text-4xl font-bold text-gray-800">Soil Moisture Analytics</h1>
+      </div>
+      <p class="text-gray-600 text-lg">วิเคราะห์ความชื้นในดินอย่างง่ายดาย</p>
+      <div class="flex items-center justify-center gap-2 mt-3">
+        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">อัปโหลดไฟล์เดียว</span>
+        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">วิเคราะห์อัตโนมัติ</span>
+        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">ได้ 5 ชุดทดลอง</span>
+      </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="card p-8 mb-8">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+        </svg>
+        อัปโหลดไฟล์ข้อมูล
+      </h2>
+      
+      <label for="fileInput" class="upload-zone cursor-pointer flex flex-col items-center justify-center p-12 rounded-2xl">
+        <svg class="w-16 h-16 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+        </svg>
+        <p class="text-xl font-semibold text-gray-800 mb-2">คลิกหรือลากไฟล์มาวางที่นี่</p>
+        <p class="text-gray-500">รองรับไฟล์ .csv เท่านั้น</p>
+        <input type="file" id="fileInput" accept=".csv" class="hidden">
+      </label>
+
+      <!-- File Selected -->
+      <div id="fileSelected" class="hidden mt-6">
+        <div class="flex items-center justify-between p-4 bg-green-50 rounded-xl border-2 border-green-200">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <p id="fileName" class="font-semibold text-gray-800"></p>
+              <p class="text-sm text-gray-500">พร้อมวิเคราะห์</p>
+            </div>
+          </div>
+          <button onclick="removeFile()" class="p-2 hover:bg-green-100 rounded-lg transition">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        
+        <button id="analyzeBtn" onclick="processFile()" class="btn-primary w-full mt-4 py-4 rounded-xl text-white font-bold text-lg shadow-lg">
+          เริ่มวิเคราะห์ข้อมูล
+        </button>
+      </div>
+
+      <!-- Info -->
+      <div class="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div class="text-sm text-gray-700">
+            <p class="font-semibold mb-2">รูปแบบไฟล์ CSV ที่รองรับ:</p>
+            <ul class="space-y-1 list-disc ml-4">
+              <li>ต้องมีคอลัมน์ <strong>time/timestamp/เวลา</strong> และ <strong>moisture/value/ความชื้น</strong></li>
+              <li>ถ้ามีคอลัมน์ <strong>experiment/group/set/ชุด</strong> ระบบจะแยกตามคอลัมน์นั้น</li>
+              <li>ถ้าไม่มีคอลัมน์กลุ่ม ระบบจะแบ่งออกเป็น 5 ส่วนเท่าๆ กันอัตโนมัติ</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="hidden card p-12 mb-8 text-center">
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
+        <p class="text-xl font-semibold text-gray-800">กำลังวิเคราะห์ข้อมูล...</p>
+        <p class="text-gray-500 mt-2">โปรดรอสักครู่</p>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="hidden space-y-8">
+      
+      <!-- Success Message -->
+      <div class="card p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-800">วิเคราะห์สำเร็จ!</h3>
+            <p class="text-gray-600">แยกข้อมูลออกเป็น 5 ชุดการทดลองเรียบร้อยแล้ว</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Experiment Cards -->
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">ผลการจัดชุดการทดลอง</h2>
+        <div id="experimentsList" class="grid grid-cols-3"></div>
+      </div>
+
+      <!-- Main Chart -->
+      <div class="card p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          กราฟเปรียบเทียบทั้ง 5 ชุด
+        </h2>
+        <canvas id="mainChart" class="w-full" height="80"></canvas>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2">
+        <div class="card">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">ความชื้นเฉลี่ย</h3>
+          <canvas id="avgChart" height="150"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">ความสัมพันธ์ NaCl</h3>
+          <canvas id="scatterChart" height="150"></canvas>
+        </div>
+      </div>
+
+      <!-- Detailed Stats -->
+      <div class="card">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">สถิติรายละเอียด</h2>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ชุด</th>
+                <th>NaCl</th>
+                <th class="text-right">ข้อมูล</th>
+                <th class="text-right">เฉลี่ย</th>
+                <th class="text-right">สูงสุด</th>
+                <th class="text-right">ต่ำสุด</th>
+                <th class="text-right">SD</th>
+              </tr>
+            </thead>
+            <tbody id="statsTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let uploadedFile = null;
+    let experimentData = {};
+    let charts = {};
+
+    const experiments = [
+      { id: 1, name: 'ชุดที่ 1', nacl: '0%', naclValue: 0.00, color: '#22c55e', desc: 'ควบคุม' },
+      { id: 2, name: 'ชุดที่ 2', nacl: '0.5%', naclValue: 0.50, color: '#3b82f6', desc: 'NaCl 0.5%' },
+      { id: 3, name: 'ชุดที่ 3', nacl: '1.0%', naclValue: 1.00, color: '#f59e0b', desc: 'NaCl 1.0%' },
+      { id: 4, name: 'ชุดที่ 4', nacl: '2.0%', naclValue: 2.00, color: '#ef4444', desc: 'NaCl 2.0%' },
+      { id: 5, name: 'ชุดที่ 5', nacl: '3.0%', naclValue: 3.00, color: '#8b5cf6', desc: 'NaCl 3.0%' }
+    ];
+
+    // File handling
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('กรุณาอัปโหลดไฟล์ .csv เท่านั้น');
+        e.target.value = '';
+        return;
+      }
+
+      uploadedFile = file;
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSelected').classList.remove('hidden');
+    });
+
+    function removeFile() {
+      uploadedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('fileSelected').classList.add('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+    }
+
+    // Data processing functions
+    function removeOutliers(data) {
+      const values = data.map(d => d.moisture);
+      const sorted = _.sortBy(values);
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = q3 - q1;
+      const lowerBound = q1 - 1.5 * iqr;
+      const upperBound = q3 + 1.5 * iqr;
+      
+      return {
+        data: data.filter(d => d.moisture >= lowerBound && d.moisture <= upperBound),
+        removedCount: data.length - data.filter(d => d.moisture >= lowerBound && d.moisture <= upperBound).length
+      };
+    }
+
+    function calculateMovingAverage(data, windowSize = 3) {
+      if (data.length < windowSize) return data;
+      
+      return data.map((item, idx) => {
+        const start = Math.max(0, idx - Math.floor(windowSize / 2));
+        const end = Math.min(data.length, idx + Math.ceil(windowSize / 2));
+        const window = data.slice(start, end);
+        const avg = _.meanBy(window, 'moisture');
+        
+        return { ...item, moisture: parseFloat(avg.toFixed(2)) };
+      });
+    }
+
+    async function processFile() {
+      if (!uploadedFile) return;
+
+      document.getElementById('loadingState').classList.remove('hidden');
+      document.getElementById('analyzeBtn').disabled = true;
+
+      try {
+        const text = await uploadedFile.text();
+        
+        Papa.parse(text, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            try {
+              const data = results.data;
+              const headers = results.meta.fields.map(h => h.trim().toLowerCase());
+              
+              const timeIdx = headers.findIndex(h => 
+                h.includes('time') || h.includes('timestamp') || h.includes('เวลา')
+              );
+              const moistureIdx = headers.findIndex(h => 
+                h.includes('moisture') || h.includes('value') || h.includes('ความชื้น') || h.includes('soil')
+              );
+              const expIdx = headers.findIndex(h =>
+                h.includes('experiment') || h.includes('group') || h.includes('set') || h.includes('ชุด')
+              );
+
+              if (timeIdx === -1 || moistureIdx === -1) {
+                throw new Error('ไม่พบคอลัมน์ time และ moisture');
+              }
+
+              let processedData = data.filter(row => row && Object.keys(row).length > 0)
+                .map(row => {
+                  const rowValues = Object.values(row);
+                  return {
+                    time: rowValues[timeIdx],
+                    moisture: parseFloat(rowValues[moistureIdx]),
+                    experiment: expIdx >= 0 ? rowValues[expIdx] : null
+                  };
+                })
+                .filter(item => item.time && !isNaN(item.moisture));
+
+              if (processedData.length === 0) {
+                throw new Error('ไม่พบข้อมูลที่ถูกต้อง');
+              }
+
+              // Group data
+              let groupedData = {};
+              if (expIdx >= 0) {
+                groupedData = _.groupBy(processedData, 'experiment');
+              } else {
+                const chunkSize = Math.ceil(processedData.length / 5);
+                for (let i = 0; i < 5; i++) {
+                  groupedData[(i + 1).toString()] = processedData.slice(i * chunkSize, Math.min((i + 1) * chunkSize, processedData.length));
+                }
+              }
+
+              // Process each group
+              const tempProcessedFiles = [];
+              Object.keys(groupedData).forEach(groupKey => {
+                const groupData = groupedData[groupKey];
+                if (groupData.length === 0) return;
+
+                const { data: cleaned } = removeOutliers(groupData);
+                const smoothed = calculateMovingAverage(cleaned, 3);
+                const moistureValues = smoothed.map(d => d.moisture);
+                const mean = _.mean(moistureValues);
+                const std = Math.sqrt(_.sum(moistureValues.map(v => Math.pow(v - mean, 2))) / moistureValues.length);
+                const maxMoisture = _.max(moistureValues);
+                
+                // Calculate average percentage from all moisture values
+                const totalMoisture = _.sum(moistureValues);
+                const avgPercent = (mean / 100 * 100).toFixed(2); // This represents the average as a percentage of the scale
+
+                tempProcessedFiles.push({
+                  fileName: `กลุ่ม ${groupKey}`,
+                  count: smoothed.length,
+                  max: maxMoisture.toFixed(2),
+                  min: _.min(moistureValues).toFixed(2),
+                  avg: mean.toFixed(2),
+                  avgPercent: mean.toFixed(2), // Average moisture percentage
+                  std: std.toFixed(2),
+                  data: smoothed
+                });
+              });
+
+              const sorted = _.orderBy(tempProcessedFiles, ['avg'], ['desc']);
+              
+              experimentData = {};
+              for (let i = 0; i < Math.min(5, sorted.length); i++) {
+                experimentData[i + 1] = sorted[i];
+              }
+
+              displayResults();
+              
+            } catch (error) {
+              alert('เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+              document.getElementById('loadingState').classList.add('hidden');
+              document.getElementById('analyzeBtn').disabled = false;
+            }
+          },
+          error: (error) => {
+            alert('ไม่สามารถอ่านไฟล์ได้: ' + error.message);
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('analyzeBtn').disabled = false;
+          }
+        });
+
+      } catch (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('analyzeBtn').disabled = false;
+      }
+    }
+
+    function displayResults() {
+      document.getElementById('resultsSection').classList.remove('hidden');
+      
+      // Experiment cards
+      const list = document.getElementById('experimentsList');
+      list.innerHTML = '';
+      
+      experiments.forEach(exp => {
+        const data = experimentData[exp.id];
+        if (!data) return;
+        
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.style.borderLeftColor = exp.color;
+        card.innerHTML = `
+          <div class="flex items-center gap-3 mb-3">
+            <div style="width: 2.5rem; height: 2.5rem; background: ${exp.color}; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.125rem;">
+              ${exp.id}
+            </div>
+            <div>
+              <div class="font-bold text-gray-800">${exp.name}</div>
+              <div class="text-sm text-gray-500">${exp.desc}</div>
+            </div>
+          </div>
+          <div class="text-3xl font-bold mb-2" style="color: ${exp.color}">${data.avg}%</div>
+          <div class="text-sm text-gray-600 mb-1">
+            <strong>ความชื้นสูงสุด:</strong> ${data.max}%
+          </div>
+          <div class="text-sm text-gray-600 mb-1">
+            <strong>เปอร์เซ็นเฉลี่ย:</strong> ${data.avgPercent}%
+          </div>
+          <div class="text-sm text-gray-500">${data.count} จุดข้อมูล</div>
+        `;
+        list.appendChild(card);
+      });
+
+      // Charts
+      createMainChart();
+      createAvgChart();
+      createScatterChart();
+      createStatsTable();
+    }
+
+    function createMainChart() {
+      const ctx = document.getElementById('mainChart');
+      if (charts.main) charts.main.destroy();
+      
+      const datasets = experiments.map(exp => {
+        const data = experimentData[exp.id];
+        if (!data) return null;
+        
+        return {
+          label: exp.name,
+          data: data.data.map(d => ({ x: d.time, y: d.moisture })),
+          borderColor: exp.color,
+          backgroundColor: exp.color + '20',
+          borderWidth: 3,
+          tension: 0.4,
+          pointRadius: 0
+        };
+      }).filter(d => d !== null);
+
+      charts.main = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 15, padding: 15, font: { size: 12 } } }
+          },
+          scales: {
+            x: { display: true, grid: { display: false } },
+            y: { beginAtZero: true, grid: { color: '#f0f0f0' } }
+          }
+        }
+      });
+    }
+
+    function createAvgChart() {
+      const ctx = document.getElementById('avgChart');
+      if (charts.avg) charts.avg.destroy();
+      
+      const data = experiments.map(exp => {
+        const expData = experimentData[exp.id];
+        return expData ? parseFloat(expData.avg) : 0;
+      });
+
+      charts.avg = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: experiments.map(e => e.name),
+          datasets: [{
+            data: data,
+            backgroundColor: experiments.map(e => e.color),
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' } } }
+        }
+      });
+    }
+
+    function createScatterChart() {
+      const ctx = document.getElementById('scatterChart');
+      if (charts.scatter) charts.scatter.destroy();
+      
+      const data = experiments.map(exp => {
+        const expData = experimentData[exp.id];
+        return expData ? { x: exp.naclValue, y: parseFloat(expData.avg) } : null;
+      }).filter(d => d !== null);
+
+      charts.scatter = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            data: data,
+            backgroundColor: experiments.map(e => e.color),
+            borderColor: experiments.map(e => e.color),
+            pointRadius: 8,
+            pointHoverRadius: 10
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: 'NaCl (%)' }, grid: { color: '#f0f0f0' } },
+            y: { title: { display: true, text: 'ความชื้น (%)' }, beginAtZero: true, grid: { color: '#f0f0f0' } }
+          }
+        }
+      });
+    }
+
+    function createStatsTable() {
+      const tbody = document.getElementById('statsTable');
+      tbody.innerHTML = '';
+      
+      experiments.forEach(exp => {
+        const data = experimentData[exp.id];
+        if (!data) return;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="font-semibold" style="color: ${exp.color}">${exp.name}</span></td>
+          <td class="text-gray-600">${exp.nacl}</td>
+          <td class="text-right text-gray-600">${data.count}</td>
+          <td class="text-right font-semibold" style="color: ${exp.color}">${data.avg}%</td>
+          <td class="text-right text-gray-600">${data.max}%</td>
+          <td class="text-right text-gray-600">${data.min}%</td>
+          <td class="text-right text-gray-600">${data.std}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
